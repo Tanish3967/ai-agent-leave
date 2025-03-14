@@ -42,7 +42,7 @@ if "logged_in" not in st.session_state:
             st.session_state["user_id"] = user[0]
             st.session_state["role"] = user[1]
             st.success(f"Logged in as {user[1]}")
-            st.experimental_rerun()
+            st.rerun()  # ✅ FIXED: Updated from `st.experimental_rerun()`
         else:
             st.error("Invalid username or password")
 
