@@ -1,3 +1,21 @@
 streamlit
+
+# AI & LLM Dependencies
+groq
 agno
-fpdf
+phi
+
+# NLP & Data Processing
+numpy
+pandas
+json
+
+# Tools & Utilities
+python-dotenv  # For loading secrets from .streamlit/secrets.toml
+exa  # ExaTools integration
+requests
+
+# PDF Handling
+pdfkit
+reportlab
+PyMuPDF
