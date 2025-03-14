@@ -8,14 +8,15 @@ phi
 # NLP & Data Processing
 numpy
 pandas
-json
 
 # Tools & Utilities
 python-dotenv  # For loading secrets from .streamlit/secrets.toml
-exa  # ExaTools integration
 requests
+
+# ExaTools for academic queries
+exa
 
 # PDF Handling
 pdfkit
 reportlab
-PyMuPDF
+pymupdf  # Corrected PyMuPDF for handling PDFs
