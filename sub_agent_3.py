@@ -2,27 +2,20 @@ import sqlite3
 from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
-import streamlit as st
 from datetime import datetime
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.mime.base import MIMEBase
-from email import encoders
-
+import os
 
 class CertificateAgent:
     def __init__(self):
         self.db_path = "leave_management.db"
 
-    def generate_certificate(self, student_id, cert_type, recipient_email=None):
+    def generate_certificate(self, student_id, cert_type):
         """
-        Generate a certificate for a student and optionally send it via email.
+        Generate a certificate for a student.
 
         Args:
             student_id (int): ID of the student.
             cert_type (str): Type of certificate (e.g., "Achievement", "NOC", "Bonafide", "Leaving").
-            recipient_email (str, optional): Email address to send the certificate to. Defaults to None.
 
         Returns:
             str: Path to the generated certificate PDF.
@@ -62,7 +55,6 @@ class CertificateAgent:
         certificate_path = f"certificates/student_{student_id}_{cert_type.lower()}.pdf"
         
         # Ensure the certificates directory exists
-        import os
         os.makedirs("certificates", exist_ok=True)
         
         with open(certificate_path, "wb") as f:
@@ -77,61 +69,4 @@ class CertificateAgent:
         conn.commit()
         conn.close()
 
-        # Optionally send the certificate via email
-        if recipient_email:
-            self.send_email(recipient_email, certificate_path)
-
         return certificate_path
-
-    def send_email(self, recipient_email, attachment_path):
-        """
-        Send an email with the generated certificate as an attachment.
-
-        Args:
-            recipient_email (str): The recipient's email address.
-            attachment_path (str): Path to the PDF file to attach.
-
-        Returns:
-            None
-        """
-        
-        # Load SMTP configuration from Streamlit secrets
-        smtp_server = st.secrets["email"]["smtp_server"]
-        smtp_port = st.secrets["email"]["port"]
-        smtp_username = st.secrets["email"]["username"]
-        smtp_password = st.secrets["email"]["password"]
-
-        sender_email = smtp_username
-
-        # Create the email message
-        msg = MIMEMultipart()
-        msg["From"] = sender_email
-        msg["To"] = recipient_email
-        msg["Subject"] = "Your Certificate"
-
-        body = "Please find your requested certificate attached."
-        
-        msg.attach(MIMEText(body, "plain"))
-
-        # Attach the PDF file
-        with open(attachment_path, "rb") as attachment:
-            part = MIMEBase("application", "octet-stream")
-            part.set_payload(attachment.read())
-        
-            encoders.encode_base64(part)
-            part.add_header(
-                "Content-Disposition",
-                f"attachment; filename={attachment_path.split('/')[-1]}",
-            )
-            msg.attach(part)
-
-        # Send the email via SMTP server
-        try:
-            with smtplib.SMTP(smtp_server, smtp_port) as server:
-                server.starttls()
-                server.login(smtp_username, smtp_password)
-                server.sendmail(sender_email, recipient_email, msg.as_string())
-                st.success(f"Certificate sent successfully to {recipient_email}!")
-        
-        except Exception as e:
-            st.error(f"Failed to send email: {str(e)}")
