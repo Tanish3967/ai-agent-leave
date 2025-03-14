@@ -1,4 +1,9 @@
+import pdfkit
 import os
+
+# Set wkhtmltopdf path manually (required for Streamlit Cloud)
+config = pdfkit.configuration(wkhtmltopdf="/usr/bin/wkhtmltopdf")
+
 import streamlit as st
 import sqlite3
 from ai_agent import MainAgent
