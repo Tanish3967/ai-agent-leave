@@ -2,25 +2,27 @@ import sqlite3
 from io import BytesIO
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import A4, landscape
+import streamlit as st
+from datetime import datetime
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.mime.base import MIMEBase
 from email import encoders
-import streamlit as st
+
 
 class CertificateAgent:
     def __init__(self):
         self.db_path = "leave_management.db"
 
-    def generate_certificate(self, student_id, cert_type, email=None):
+    def generate_certificate(self, student_id, cert_type, recipient_email=None):
         """
         Generate a certificate for a student and optionally send it via email.
 
         Args:
             student_id (int): ID of the student.
             cert_type (str): Type of certificate (e.g., "Achievement", "NOC", "Bonafide", "Leaving").
-            email (str, optional): Email address to send the certificate to. Defaults to None.
+            recipient_email (str, optional): Email address to send the certificate to. Defaults to None.
 
         Returns:
             str: Path to the generated certificate PDF.
@@ -48,7 +50,6 @@ class CertificateAgent:
         c.drawCentredString(420, 350, f"Awarded to: {student_name}")
         
         # Add IST timestamp to the certificate
-        from datetime import datetime
         ist_time = datetime.now().astimezone().strftime("%B %d, %Y at %I:%M %p IST")
         c.setFont("Helvetica", 12)
         c.drawCentredString(420, 200, f"Date: {ist_time}")
@@ -77,8 +78,8 @@ class CertificateAgent:
         conn.close()
 
         # Optionally send the certificate via email
-        if email:
-            self.send_email(email, certificate_path)
+        if recipient_email:
+            self.send_email(recipient_email, certificate_path)
 
         return certificate_path
 
