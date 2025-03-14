@@ -1,20 +1,22 @@
-import pdfkit
 import os
-
-# Set wkhtmltopdf path manually (required for Streamlit Cloud)
-config = pdfkit.configuration(wkhtmltopdf="/usr/bin/wkhtmltopdf")
-
 import streamlit as st
 import sqlite3
+import pdfkit
 from ai_agent import MainAgent
 
-# Ensure database schema is created
+# ✅ PDFKit Workaround for Streamlit Cloud
+WKHTMLTOPDF_PATH = "/usr/bin/wkhtmltopdf"
+if not os.path.exists(WKHTMLTOPDF_PATH):
+    st.warning("wkhtmltopdf not found! PDFs may not generate correctly.")
+config = pdfkit.configuration(wkhtmltopdf=WKHTMLTOPDF_PATH)
+
+# ✅ Ensure database schema is created
 if not os.path.exists("leave_management.db"):
     import schema  
 
 agent = MainAgent()
 
-# Function to authenticate users
+# ✅ Authenticate Users
 def authenticate(username, password):
     conn = sqlite3.connect("leave_management.db")
     cursor = conn.cursor()
@@ -23,7 +25,7 @@ def authenticate(username, password):
     conn.close()
     return user
 
-# Function to fetch mentors from DB
+# ✅ Fetch Mentors from DB
 def get_mentors():
     conn = sqlite3.connect("leave_management.db")
     cursor = conn.cursor()
@@ -32,10 +34,16 @@ def get_mentors():
     conn.close()
     return mentors
 
-# Streamlit UI
+# ✅ Logout Function
+def logout():
+    for key in list(st.session_state.keys()):
+        del st.session_state[key]
+    st.experimental_rerun()
+
+# ✅ Streamlit UI
 st.title("Leave Management System")
 
-# Login Section
+# ✅ Login Section
 if "logged_in" not in st.session_state:
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -47,11 +55,11 @@ if "logged_in" not in st.session_state:
             st.session_state["user_id"] = user[0]
             st.session_state["role"] = user[1]
             st.success(f"Logged in as {user[1]}")
-            st.rerun()  # ✅ FIXED: Updated from `st.experimental_rerun()`
+            st.experimental_rerun()
         else:
             st.error("Invalid username or password")
 
-# Leave Request Section
+# ✅ Leave Request Section
 if st.session_state.get("logged_in"):
     role = st.session_state["role"]
 
@@ -80,4 +88,55 @@ if st.session_state.get("logged_in"):
                 except Exception as e:
                     st.error(f"Error processing request: {str(e)}")
 
-st.sidebar.button("Logout", on_click=st.session_state.clear)
+    elif role == "mentor":
+        st.subheader("Mentor Dashboard")
+        mentor_id = st.session_state["user_id"]
+
+        # ✅ Fetch pending leave requests for this mentor
+        conn = sqlite3.connect("leave_management.db")
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, student_id, days FROM leave_requests WHERE mentor_id=? AND status='pending'", (mentor_id,))
+        requests = cursor.fetchall()
+        conn.close()
+
+        if not requests:
+            st.info("No pending leave requests.")
+        else:
+            for req in requests:
+                request_id, student_id, days = req
+                st.write(f"Student ID: {student_id}, Leave Days: {days}")
+
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.button(f"Approve {request_id}"):
+                        agent.update_leave_status(request_id, "approved")
+                        st.experimental_rerun()
+                with col2:
+                    if st.button(f"Reject {request_id}"):
+                        agent.update_leave_status(request_id, "rejected")
+                        st.experimental_rerun()
+
+    elif role == "admin":
+        st.subheader("Admin Panel")
+
+        # ✅ Upload Academic Calendar
+        st.write("Upload Academic Calendar (PDF)")
+        academic_file = st.file_uploader("Upload PDF", type=["pdf"])
+        if academic_file:
+            with open("academic_calendar.pdf", "wb") as f:
+                f.write(academic_file.getbuffer())
+            st.success("Academic Calendar Uploaded!")
+
+        # ✅ Upload Backlog Student List
+        st.write("Upload Backlog Student List (CSV)")
+        backlog_file = st.file_uploader("Upload CSV", type=["csv"])
+        if backlog_file:
+            import pandas as pd
+            df = pd.read_csv(backlog_file)
+            conn = sqlite3.connect("leave_management.db")
+            df.to_sql("backlogs", conn, if_exists="replace", index=False)
+            conn.close()
+            st.success("Backlog Student Data Updated!")
+
+# ✅ Logout Button
+st.sidebar.button("Logout", on_click=logout)
