@@ -1,59 +1,71 @@
 import sqlite3
 
-def update_schema():
-    conn = sqlite3.connect("leave_management.db")
-    cursor = conn.cursor()
+# Connect to SQLite database
+conn = sqlite3.connect("leave_management.db")
+cursor = conn.cursor()
 
-    # Drop old tables if they exist
-    cursor.execute("DROP TABLE IF EXISTS users")
-    cursor.execute("DROP TABLE IF EXISTS leave_requests")
+# Drop existing tables (for fresh setup, remove if not needed)
+cursor.execute("DROP TABLE IF EXISTS users")
+cursor.execute("DROP TABLE IF EXISTS leave_requests")
+cursor.execute("DROP TABLE IF EXISTS mentors")
 
-    # Create updated users table
-    cursor.execute("""
-        CREATE TABLE users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT UNIQUE NOT NULL,
-            password TEXT NOT NULL,
-            role TEXT CHECK(role IN ('admin', 'mentor', 'student')) NOT NULL
-        )
-    """)
+# Create Users Table
+cursor.execute("""
+CREATE TABLE users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL,
+    role TEXT CHECK(role IN ('admin', 'mentor', 'student')) NOT NULL
+)
+""")
 
-    # Create updated leave_requests table
-    cursor.execute("""
-        CREATE TABLE leave_requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            student_id INTEGER NOT NULL,
-            mentor_id INTEGER NOT NULL,
-            start_date TEXT NOT NULL,
-            end_date TEXT NOT NULL,
-            days INTEGER NOT NULL,
-            status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) NOT NULL DEFAULT 'pending',
-            FOREIGN KEY (student_id) REFERENCES users(id),
-            FOREIGN KEY (mentor_id) REFERENCES users(id)
-        )
-    """)
+# Create Mentors Table (to allow multiple students under one mentor)
+cursor.execute("""
+CREATE TABLE mentors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mentor_id INTEGER NOT NULL,
+    student_id INTEGER NOT NULL,
+    FOREIGN KEY (mentor_id) REFERENCES users(id),
+    FOREIGN KEY (student_id) REFERENCES users(id),
+    UNIQUE (mentor_id, student_id) -- Ensure no duplicate mentor-student assignments
+)
+""")
 
-    conn.commit()
-    conn.close()
+# Create Leave Requests Table
+cursor.execute("""
+CREATE TABLE leave_requests (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    student_id INTEGER NOT NULL,
+    mentor_id INTEGER NOT NULL,
+    days INTEGER NOT NULL CHECK(days > 0 AND days <= 10), -- Max leave days limit
+    status TEXT CHECK(status IN ('approved', 'pending', 'rejected')) NOT NULL DEFAULT 'pending',
+    FOREIGN KEY (student_id) REFERENCES users(id),
+    FOREIGN KEY (mentor_id) REFERENCES users(id)
+)
+""")
 
-def insert_synthetic_data():
-    conn = sqlite3.connect("leave_management.db")
-    cursor = conn.cursor()
+# Insert Synthetic Users
+users_data = [
+    ("admin1", "admin123", "admin"),
+    ("mentor1", "mentor123", "mentor"),
+    ("mentor2", "mentor123", "mentor"),
+    ("student1", "student123", "student"),
+    ("student2", "student123", "student"),
+]
 
-    # Insert synthetic users
-    users = [
-        ("admin_user", "admin_pass", "admin"),
-        ("mentor1", "mentor1_pass", "mentor"),
-        ("mentor2", "mentor2_pass", "mentor"),
-        ("student1", "student1_pass", "student"),
-        ("student2", "student2_pass", "student"),
-    ]
-    cursor.executemany("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", users)
+cursor.executemany("INSERT INTO users (username, password, role) VALUES (?, ?, ?)", users_data)
 
-    conn.commit()
-    conn.close()
+# Assign Students to Mentors
+mentors_data = [
+    (2, 4),  # Mentor 1 -> Student 1
+    (2, 5),  # Mentor 1 -> Student 2
+    (3, 5),  # Mentor 2 -> Student 2
+]
 
-if __name__ == "__main__":
-    update_schema()
-    insert_synthetic_data()
-    print("Database schema updated & synthetic data inserted successfully.")
+cursor.executemany("INSERT INTO mentors (mentor_id, student_id) VALUES (?, ?)", mentors_data)
+
+# Commit and Close Connection
+conn.commit()
+conn.close()
+
+print("Database schema created and synthetic data inserted successfully.")
