@@ -1,22 +1,20 @@
 import os
-import streamlit as st
 import sqlite3
-import pdfkit
+import streamlit as st
+from io import BytesIO
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4, landscape
 from ai_agent import MainAgent
 
-# ✅ PDFKit Workaround for Streamlit Cloud
-WKHTMLTOPDF_PATH = "/usr/bin/wkhtmltopdf"
-if not os.path.exists(WKHTMLTOPDF_PATH):
-    st.warning("wkhtmltopdf not found! PDFs may not generate correctly.")
-config = pdfkit.configuration(wkhtmltopdf=WKHTMLTOPDF_PATH)
-
-# ✅ Ensure database schema is created
-if not os.path.exists("leave_management.db"):
-    import schema  
-
+# Initialize Main Agent
 agent = MainAgent()
 
-# ✅ Authenticate Users
+# Initialize Database
+if not os.path.exists("leave_management.db"):
+    from schema import create_database
+    create_database()
+
+# Authenticate Users
 def authenticate(username, password):
     conn = sqlite3.connect("leave_management.db")
     cursor = conn.cursor()
@@ -25,29 +23,18 @@ def authenticate(username, password):
     conn.close()
     return user
 
-# ✅ Fetch Mentors from DB
-def get_mentors():
-    conn = sqlite3.connect("leave_management.db")
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, username FROM users WHERE role='mentor'")
-    mentors = cursor.fetchall()
-    conn.close()
-    return mentors
-
-# ✅ Logout Function
+# Logout Functionality
 def logout():
     for key in list(st.session_state.keys()):
         del st.session_state[key]
     st.experimental_rerun()
 
-# ✅ Streamlit UI
+# Streamlit UI
 st.title("Leave Management System")
 
-# ✅ Login Section
 if "logged_in" not in st.session_state:
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
-
     if st.button("Login"):
         user = authenticate(username, password)
         if user:
@@ -59,43 +46,74 @@ if "logged_in" not in st.session_state:
         else:
             st.error("Invalid username or password")
 
-# ✅ Leave Request Section
 if st.session_state.get("logged_in"):
     role = st.session_state["role"]
-
+    
+    # Student Dashboard
     if role == "student":
         st.subheader("Request Leave")
+        days = st.number_input("Number of Leave Days", min_value=1, max_value=10)
+        reason = st.text_area("Reason for Leave")
+        if st.button("Submit Leave Request"):
+            try:
+                result = agent.process_leave_request(st.session_state["user_id"], days)
+                if result == "pending":
+                    st.warning("Leave request pending mentor approval.")
+                else:
+                    st.success("Leave approved.")
+            except Exception as e:
+                st.error(f"Error processing request: {str(e)}")
 
-        # Fetch mentor list dynamically
-        mentors = get_mentors()
-        if not mentors:
-            st.warning("No mentors available. Contact admin.")
-        else:
-            mentor_options = {name: mid for mid, name in mentors}
-            selected_mentor = st.selectbox("Select Mentor", list(mentor_options.keys()))
-            mentor_id = mentor_options[selected_mentor]
+        # Certificate Generation Section
+        cert_type = st.selectbox(
+            "Select Certificate Type:", 
+            ["Achievement Certificate", "NOC", "Bonafide", "Leaving"]
+        )
+        recipient_email = st.text_input("Recipient Email (Optional)")
+        
+        if st.button("Generate Certificate"):
+            pdf_buffer = BytesIO()
+            c = canvas.Canvas(pdf_buffer, pagesize=landscape(A4))
+            
+            # Generate certificate content based on type
+            c.setFont("Helvetica-Bold", 30)
+            c.drawCentredString(420, 400, f"{cert_type} Certificate")
+            c.setFont("Helvetica", 20)
+            c.drawCentredString(420, 350, f"Awarded to: {st.session_state['user_id']}")
+            
+            # Add IST timestamp to certificate
+            ist_timezone = datetime.now().astimezone().strftime("%B %d, %Y at %I:%M %p IST")
+            c.setFont("Helvetica", 12)
+            c.drawCentredString(420, 200, f"Date: {ist_timezone}")
+            
+            c.save()
+            
+            pdf_buffer.seek(0)
+            
+            # Download button for the certificate PDF
+            file_name = f"{cert_type.lower().replace(' ', '_')}_certificate.pdf"
+            st.download_button(
+                label="📄 Download Certificate",
+                data=pdf_buffer,
+                file_name=file_name,
+                mime="application/pdf"
+            )
+            
+            # Optionally send the certificate via email (if recipient_email is provided)
+            if recipient_email:
+                # Simulate email sending (replace with actual email-sending logic)
+                st.success(f"Certificate sent to {recipient_email}!")
 
-            days = st.number_input("Number of Leave Days", min_value=1, max_value=10, step=1)
-
-            if st.button("Submit Leave Request"):
-                try:
-                    result = agent.process_leave_request(st.session_state["user_id"], mentor_id, days)
-                    if result == "pending":
-                        st.warning("Leave request pending mentor approval.")
-                    else:
-                        st.success("Leave approved. Download your certificate below.")
-                        st.download_button("Download Certificate", open(result, "rb"), file_name="leave_certificate.pdf")
-                except Exception as e:
-                    st.error(f"Error processing request: {str(e)}")
-
+    # Mentor Dashboard
     elif role == "mentor":
-        st.subheader("Mentor Dashboard")
         mentor_id = st.session_state["user_id"]
-
-        # ✅ Fetch pending leave requests for this mentor
+        
+        # Fetch pending leave requests for this mentor
         conn = sqlite3.connect("leave_management.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT id, student_id, days FROM leave_requests WHERE mentor_id=? AND status='pending'", (mentor_id,))
+        cursor.execute("""
+            SELECT id, student_id, days FROM leave_requests WHERE mentor_id=? AND status='pending'
+        """, (mentor_id,))
         requests = cursor.fetchall()
         conn.close()
 
@@ -104,39 +122,16 @@ if st.session_state.get("logged_in"):
         else:
             for req in requests:
                 request_id, student_id, days = req
-                st.write(f"Student ID: {student_id}, Leave Days: {days}")
-
                 col1, col2 = st.columns(2)
                 with col1:
                     if st.button(f"Approve {request_id}"):
-                        agent.update_leave_status(request_id, "approved")
+                        agent.leave_agent.update_leave_status(request_id, "approved")
                         st.experimental_rerun()
                 with col2:
                     if st.button(f"Reject {request_id}"):
-                        agent.update_leave_status(request_id, "rejected")
+                        agent.leave_agent.update_leave_status(request_id, "rejected")
                         st.experimental_rerun()
 
+    # Admin Dashboard
     elif role == "admin":
-        st.subheader("Admin Panel")
-
-        # ✅ Upload Academic Calendar
-        st.write("Upload Academic Calendar (PDF)")
-        academic_file = st.file_uploader("Upload PDF", type=["pdf"])
-        if academic_file:
-            with open("academic_calendar.pdf", "wb") as f:
-                f.write(academic_file.getbuffer())
-            st.success("Academic Calendar Uploaded!")
-
-        # ✅ Upload Backlog Student List
-        st.write("Upload Backlog Student List (CSV)")
-        backlog_file = st.file_uploader("Upload CSV", type=["csv"])
-        if backlog_file:
-            import pandas as pd
-            df = pd.read_csv(backlog_file)
-            conn = sqlite3.connect("leave_management.db")
-            df.to_sql("backlogs", conn, if_exists="replace", index=False)
-            conn.close()
-            st.success("Backlog Student Data Updated!")
-
-# ✅ Logout Button
-st.sidebar.button("Logout", on_click=logout)
+        academic_file = st.file_uploader("Upload Academic Calendar (PDF)", type=["pdf"])
