@@ -16,10 +16,12 @@ class LeaveAgent:
 
         # Auto-approve if days ≤ 5
         status = "approved" if days <= 5 else "pending"
+        
+        cursor.execute("""
+            INSERT INTO leave_requests (student_id, mentor_id, days, status) VALUES (?, ?, ?, ?)
+        """, (student_id, mentor_id, days, status))
 
-        cursor.execute("INSERT INTO leave_requests (student_id, mentor_id, days, status) VALUES (?, ?, ?, ?)", 
-                       (student_id, mentor_id, days, status))
         conn.commit()
         conn.close()
 
-        return "approved" if days <= 5 else "pending"
+        return status
