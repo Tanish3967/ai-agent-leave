@@ -5,16 +5,11 @@ from sub_agent_3 import CertificateAgent
 
 class MainAgent:
     def __init__(self):
-        # Initialize Leave Management Agent
         self.leave_agent = LeaveAgent()
-
-        # Initialize Academic Query Agent (Now uses only Groq AI)
-        self.academic_agent = AcademicQueryAgent()  # ✅ FIX: No ExaTools
-
-        # Initialize Certificate Generation Agent
+        self.academic_agent = AcademicQueryAgent()
         self.certificate_agent = CertificateAgent()
 
-        # User Proxy Agent (Handles Multi-Agent Collaboration)
+        # User Proxy Agent (Handles Multi-Agent Communication)
         self.user_proxy = autogen.UserProxyAgent(
             name="UserProxy",
             system_message="Routes requests to appropriate AI agents based on task type."
