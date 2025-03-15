@@ -6,7 +6,8 @@ class LeaveAgent:
             name="LeaveAgent",
             system_message="Handles leave requests and approvals based on student-mentor mapping.",
             llm_config={
-                "config_list": [{"model": "deepseek-r1-distill-llama-70b", "api_key": "YOUR_GROQ_API_KEY"}]
+                "config_list": [{"model": "deepseek-r1-distill-llama-70b", "api_key": "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"}],
+                "use_openai_api": False  # ✅ Force Autogen to disable OpenAI
             }
         )
 
