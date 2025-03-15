@@ -5,7 +5,9 @@ class LeaveAgent:
         self.agent = autogen.AssistantAgent(
             name="LeaveAgent",
             system_message="Handles leave requests and approvals based on student-mentor mapping.",
-            llm_config={"model": "deepseek-r1-distill-llama-70b"}
+            llm_config={
+                "config_list": [{"model": "deepseek-r1-distill-llama-70b", "api_key": "YOUR_GROQ_API_KEY"}]
+            }
         )
 
     def process_leave(self, student_id, days):
