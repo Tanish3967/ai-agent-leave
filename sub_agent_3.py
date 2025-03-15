@@ -9,7 +9,7 @@ class CertificateAgent:
             name="CertificateAgent",
             system_message="Generates certificates and provides downloadable PDFs.",
             llm_config={
-                "config_list": [{"model": "deepseek-r1-distill-llama-70b", "api_key": "YOUR_GROQ_API_KEY"}],
+                "config_list": [{"model": "deepseek-r1-distill-llama-70b", "api_key": "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"}],
                 "use_openai_api": False  # ✅ Disable OpenAI
             }
         )
