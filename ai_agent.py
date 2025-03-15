@@ -9,10 +9,11 @@ class MainAgent:
         self.academic_agent = AcademicQueryAgent()
         self.certificate_agent = CertificateAgent()
 
-        # User Proxy Agent (Handles Multi-Agent Communication)
+        # ✅ Ensure OpenAI is completely disabled
         self.user_proxy = autogen.UserProxyAgent(
             name="UserProxy",
-            system_message="Routes requests to appropriate AI agents based on task type."
+            system_message="Routes requests to appropriate AI agents based on task type.",
+            llm_config={"use_openai_api": False}  # ✅ Force disable OpenAI
         )
 
         # Register all agents with the User Proxy
