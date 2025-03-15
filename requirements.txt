@@ -9,10 +9,6 @@ groq==0.19.0
 numpy==1.26.4
 pandas==2.2.1
 
-# Academic Query Tools (Ensure ExaTools Works)
-exa==0.1.5
-exa_py==0.2.3  # Add this line to fix the import error
-
 # PDF Generation
 reportlab==4.1.0
 pymupdf==1.23.7
