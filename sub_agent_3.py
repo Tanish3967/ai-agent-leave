@@ -8,7 +8,9 @@ class CertificateAgent:
         self.agent = autogen.AssistantAgent(
             name="CertificateAgent",
             system_message="Generates certificates and provides downloadable PDFs.",
-            llm_config={"model": "deepseek-r1-distill-llama-70b"}
+            llm_config={
+                "config_list": [{"model": "deepseek-r1-distill-llama-70b", "api_key": "YOUR_GROQ_API_KEY"}]
+            }
         )
 
     def generate_certificate(self, student_id, email=None):
