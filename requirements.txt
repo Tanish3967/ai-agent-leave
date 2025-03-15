@@ -1,24 +1,15 @@
-python==3.11
-
 streamlit
 
-# AI & LLM Dependencies
+autogen
 groq
-agno
-phi
+agno-sdk
 
-# NLP & Data Processing
 numpy
 pandas
 
-# Tools & Utilities
-python-dotenv  # For loading secrets from .streamlit/secrets.toml
-requests
+sqlite3
 
-# ExaTools for academic queries
 exa
 
-# PDF Handling
-pdfkit
 reportlab
-pymupdf  # Corrected PyMuPDF for handling PDFs
+pymupdf  
