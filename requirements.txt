@@ -1,15 +1,14 @@
+python==3.12
+
 streamlit
 
 autogen
 groq
-agno-sdk
 
 numpy
 pandas
-
-sqlite3
-
+agno
 exa
 
 reportlab
-pymupdf  
+pymupdf
